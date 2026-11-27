@@ -32,6 +32,10 @@
  *           business → its usual work (or something else → business categories) → service, and asks how often (price per
  *           visit and about-a-month) and the business name. ?for=business starts on the Business path. Right after Home /
  *           Business: the 5 services most people choose on that path (lib/popular-services, from real bookings).
+ * UPDATED : 2026-11-27_1700 UTC — owner's order: Home or Business → popular services → other services → quick description →
+ *           3 pictures → the AI quote → send the job at Handled's price, or name your price (job board: /book?offer=,
+ *           same rules as the booking page: offerCheck bounds, posting fee, pros decide). Project manager and a call stay
+ *           as links under the two buttons.
  * UPDATED : 2026-11-17_1600 UTC — up to $2,500: the estimate is the exact price to book now, no call or site visit needed
  *           (headline price + typical range); over that, or for events / safety cases, the range and why a visit comes first.
  */
@@ -39,7 +43,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
-import { BIZ_FREQUENCIES, BRAND, GET_IT_HANDLED, INDUSTRIES, INSTANT_PRICE_UP_TO, callCalendarLinks, categoryText, firstProjectLine, monthlyEstimate, money, moneyRange, photoShots, pickerCategories, pickerGroups, type CategoryId, type Frequency, type PickerAudience } from "@handled/core";
+import { BIZ_FREQUENCIES, BOARD_POST_FEE, OFFER_BOUNDS, offerCheck, BRAND, GET_IT_HANDLED, INDUSTRIES, INSTANT_PRICE_UP_TO, callCalendarLinks, categoryText, firstProjectLine, monthlyEstimate, money, moneyRange, photoShots, pickerCategories, pickerGroups, type CategoryId, type Frequency, type PickerAudience } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { CallScheduler, browserTz } from "./CallScheduler";
@@ -82,7 +86,8 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   const [earn, setEarn] = useState(true);
   const [partner, setPartner] = useState<{ code: string; reward: boolean } | null>(null);
   const [est, setEst] = useState<Est | null>(null);
-  const [next, setNext] = useState<"pm" | "call" | null>(null);
+  const [next, setNext] = useState<"pm" | "call" | "offer" | null>(null);
+  const [offer, setOffer] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done">("idle");
   const [callMode, setCallMode] = useState<"asap" | "schedule">("asap");
   const [callAt, setCallAt] = useState<string | null>(null);
@@ -98,6 +103,10 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   const recurring = biz && freq !== "once";
   const priceText = est?.price ? `${instant ? money(est.price.point) : moneyRange(est.price.low, est.price.high)}${recurring ? L(" per visit", " por visita") : ""}` : null;
   const monthly = est?.price && recurring && instant ? monthlyEstimate(est.price.point, freq) : null;
+  // name your price: one-time jobs with an instant price (the job board); pros decide
+  const canName = Boolean(est?.service_slug && est.price && instant && !est.consult_only && !recurring);
+  const offerNum = Number(offer) || 0;
+  const offerChk = canName && offerNum && est?.price ? offerCheck(offerNum, est.price.point) : null;
   const limit = `$${INSTANT_PRICE_UP_TO.toLocaleString("en-US")}`;
 
   async function getEstimate(service = f.service) {
@@ -122,7 +131,7 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photos.length, f.zip, uploading, picked, skip, est, state, freq]);
 
-  function bookHref() {
+  function bookHref(named?: number) {
     if (!est?.service_slug) return "/book";
     const q = new URLSearchParams({ service: est.service_slug, src: "post", utm_source: "post_project" });
     if (f.timing && WHEN[f.timing]) q.set("when", WHEN[f.timing]);
@@ -130,6 +139,8 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
     const notes = [f.details.trim(), est.notes ?? ""].filter(Boolean).join("\n");
     if (notes) q.set("notes", notes.slice(0, 1500));
     for (const [k, v] of Object.entries(est.answers)) q.set(k, String(v));
+    if (named) q.set("offer", String(Math.round(named)));
+    if (biz) { q.set("for", "business"); if (freq !== "once") q.set("frequency", freq); }
     return `/book?${q}`;
   }
 
@@ -242,7 +253,7 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
                 <div className="flex flex-wrap gap-2">{popular[audience].map((slug) => byslug.get(slug)).filter(Boolean).map((x) => (
                   <button key={x!.slug} type="button" onClick={() => pick(x!.slug)} className="rounded-full border border-brand/40 bg-brand-tint px-3 py-1.5 text-sm font-semibold hover:border-brand">{catOf(x!.slug)?.icon} {x!.name}</button>
                 ))}</div>
-                <div className="mt-3 text-xs text-ink-soft">{biz ? L("Or tell us your kind of business:", "O díganos su tipo de negocio:") : L("Or pick a category:", "O elija una categoría:")}</div>
+                <div className="mt-3 text-xs text-ink-soft">{biz ? L("Or tell us your kind of business:", "O díganos su tipo de negocio:") : L("Other services:", "Otros servicios:")}</div>
               </div>
             )}
             {biz && !industry ? (
@@ -304,33 +315,33 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
         {(picked || skip) && (
           <>
             <div>
-              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">2 · {L(`Snap ${GET_IT_HANDLED.photos} photos`, `Tome ${GET_IT_HANDLED.photos} fotos`)}</div>
+              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">2 · {L("Quick description", "Descripción rápida")}</div>
+              <textarea className="input mt-1 min-h-16" maxLength={2500} placeholder={skip ? L("What needs doing? A sentence is plenty.", "¿Qué hay que hacer? Una frase basta.") : L("e.g. 3 bedrooms and 2 baths, or a leaking kitchen faucet, or 2 couches and a fridge", "p. ej. 3 cuartos y 2 baños, o una llave de cocina que gotea, o 2 sofás y un refrigerador")} value={f.details} onChange={set("details")} aria-label={L("Quick description", "Descripción rápida")} />
+            </div>
+            <div>
+              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">3 · {L(`${GET_IT_HANDLED.photos} pictures`, `${GET_IT_HANDLED.photos} fotos`)}</div>
               <ol className="mb-2 mt-1 list-decimal space-y-0.5 pl-5 text-sm text-ink-soft">{photoShots(picked?.slug).slice(0, GET_IT_HANDLED.photos).map((t) => <li key={t}>{t}</li>)}</ol>
               <PhotoPicker value={photos} onChange={setPhotos} max={GET_IT_HANDLED.maxPhotos} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} />
               <p className="mt-1 text-xs text-ink-soft">{photos.length >= GET_IT_HANDLED.photos ? L("Great, that's enough for an exact price.", "Perfecto, con eso basta para un precio exacto.") : L(`${GET_IT_HANDLED.photos - photos.length} more for the most accurate price (you can skip photos, but the price is a typical one).`, `${GET_IT_HANDLED.photos - photos.length} más para el precio más preciso (puede omitirlas, pero el precio será el típico).`)}</p>
             </div>
-            <div className="space-y-3">
-              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">3 · {biz ? L("A few quick questions", "Unas preguntas rápidas") : L("Three quick questions", "Tres preguntas rápidas")}</div>
-              <div className={`grid gap-3 ${biz ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
-                {biz ? (
-                  <>
-                    <select className="input" value={freq} onChange={(e) => { setFreq(e.target.value as Frequency); setEst(null); auto.current = false; }} aria-label={L("How often", "Con qué frecuencia")}>
-                      {BIZ_FREQUENCIES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-                    </select>
-                    <input className="input" placeholder={L("Business name", "Nombre del negocio")} value={company} onChange={(e) => setCompany(e.target.value)} maxLength={120} aria-label={L("Business name", "Nombre del negocio")} />
-                  </>
-                ) : (
-                  <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
-                    <option value="">{L("When do you need it?", "¿Para cuándo?")}</option>
-                    {timings.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <div className={`grid gap-3 ${biz ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+              <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
+              {biz ? (
+                <>
+                  <select className="input" value={freq} onChange={(e) => { setFreq(e.target.value as Frequency); setEst(null); auto.current = false; }} aria-label={L("How often", "Con qué frecuencia")}>
+                    {BIZ_FREQUENCIES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
                   </select>
-                )}
-              </div>
-              <textarea className="input min-h-16" maxLength={2500} placeholder={skip ? L("What needs doing? (a sentence is plenty)", "¿Qué hay que hacer? (una frase basta)") : L("Anything we should know? Size, how many, access (optional)", "¿Algo que debamos saber? Tamaño, cantidad, acceso (opcional)")} value={f.details} onChange={set("details")} aria-label={L("Details", "Detalles")} />
+                  <input className="input" placeholder={L("Business name", "Nombre del negocio")} value={company} onChange={(e) => setCompany(e.target.value)} maxLength={120} aria-label={L("Business name", "Nombre del negocio")} />
+                </>
+              ) : (
+                <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
+                  <option value="">{L("When do you need it?", "¿Para cuándo?")}</option>
+                  {timings.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              )}
             </div>
-            <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("Reading your photos…", "Leyendo sus fotos…") : est ? L("Update my price", "Actualizar mi precio") : L("Get it Handled: see my price", "Resuélvalo con Handled: ver mi precio")}</button>
-            <p className="text-center text-xs text-ink-soft">{L("Free and instant. No contact details needed to see your price.", "Gratis y al instante. Sin datos de contacto para ver su precio.")}</p>
+            <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("AI is pricing your job…", "La IA calcula su trabajo…") : est ? L("Update my quote", "Actualizar mi cotización") : L("Get my AI quote", "Obtener mi cotización con IA")}</button>
+            <p className="text-center text-xs text-ink-soft">{L("Free and instant. No contact details needed to see your quote.", "Gratis y al instante. Sin datos de contacto para ver su cotización.")}</p>
           </>
         )}
         {err && !est && <p className="text-sm text-rose-700">{err}</p>}
@@ -339,7 +350,7 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
       {/* 2 — the estimate */}
       {est && (
         <div className="card space-y-3" aria-live="polite">
-          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">{L("Your price", "Su precio")}</div>
+          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">4 · {L("Your AI quote", "Su cotización con IA")}</div>
           {!est.service_slug ? (
             <div className="space-y-2 text-sm">
               <p>{est.summary ?? L("We couldn't match that to a service on our own yet.", "Aún no pudimos asociarlo a un servicio.")} {L("Pick the closest service above and re-price, or have a person call — we take custom projects too.", "Elija el servicio más cercano arriba y recalcule, o pida que le llamemos: también hacemos proyectos a medida.")}</p>
@@ -370,25 +381,46 @@ export function PostProjectForm({ es, services, preset, audience: startAudience 
         </div>
       )}
 
-      {/* 3 — what's next */}
+      {/* 5 — send the job: at Handled's price, or name your price (pros on the job board decide) */}
       {est && (
         <div className="card space-y-3">
-          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">{L("How do you want to get it Handled?", "¿Cómo quiere continuar?")}</div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {est.service_slug && (
-              <a href={bookHref()} className="rounded-xl border border-line p-3 text-left text-sm hover:border-brand">
-                <div className="font-semibold"><Ico i="⚡" />{est.consult_only ? L("Book the free consult", "Reservar la consulta gratis") : est.site_visit ? L("Book a free site visit", "Reservar visita gratis") : L("Book at this price", "Reservar a este precio")}</div>
-                <div className="text-xs text-ink-soft">{L("Pick a time, see the exact price, done in 2 minutes.", "Elija la hora y vea el precio exacto en 2 minutos.")}</div>
+          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">5 · {L("Send your job", "Envíe su trabajo")}</div>
+          {est.service_slug && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <a href={bookHref()} className="rounded-xl border-2 border-brand bg-brand p-4 text-left text-white hover:bg-brand-dark">
+                <div className="text-base font-bold">{est.consult_only ? L("Book the free consult", "Reservar la consulta gratis") : est.site_visit ? L("Book a free site visit", "Reservar visita gratis") : L(`Send it at Handled's price${est.price ? `: ${money(est.price.point)}` : ""}`, `Enviar al precio de Handled${est.price ? `: ${money(est.price.point)}` : ""}`)}</div>
+                <div className="text-xs text-white/80">{L("A vetted pro, guaranteed. Pick the day, done in 2 minutes.", "Un profesional verificado, garantizado. Elija el día en 2 minutos.")}</div>
               </a>
-            )}
-            <button type="button" onClick={() => setNext("pm")} className={`rounded-xl border p-3 text-left text-sm ${next === "pm" ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
-              <div className="font-semibold"><Ico i="🤖" />{L("AI project manager", "Gerente de proyecto IA")}</div>
-              <div className="text-xs text-ink-soft">{L("Plan the scope, tune the price and timing — 24/7, right here.", "Planee el alcance, ajuste precio y fechas, 24/7, aquí mismo.")}</div>
-            </button>
-            <button type="button" onClick={() => setNext("call")} className={`rounded-xl border p-3 text-left text-sm ${next === "call" ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
-              <div className="font-semibold"><Ico i="📱" />{L("Have a person call me", "Que me llame una persona")}</div>
-              <div className="text-xs text-ink-soft">{L("A real Handled person calls within minutes with your estimate.", "Una persona de Handled le llama en minutos con su estimado.")}</div>
-            </button>
+              {canName ? (
+                <button type="button" onClick={() => { setNext(next === "offer" ? null : "offer"); if (!offer && est.price) setOffer(String(est.price.point)); }} className={`rounded-xl border-2 p-4 text-left ${next === "offer" ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
+                  <div className="text-base font-bold">💬 {L("Name your price", "Ponga su precio")}</div>
+                  <div className="text-xs text-ink-soft">{L("Offer what you want to pay. Pros on our job board decide.", "Ofrezca lo que quiere pagar. Los profesionales deciden.")}</div>
+                </button>
+              ) : (
+                <button type="button" onClick={() => setNext("call")} className={`rounded-xl border-2 p-4 text-left ${next === "call" ? "border-brand bg-brand-tint" : "border-line hover:border-brand"}`}>
+                  <div className="text-base font-bold">📱 {L("Have a person call me", "Que me llame una persona")}</div>
+                  <div className="text-xs text-ink-soft">{L("A real Handled person calls with your quote.", "Una persona de Handled le llama con su cotización.")}</div>
+                </button>
+              )}
+            </div>
+          )}
+          {next === "offer" && canName && est.price && (
+            <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
+              <div className="flex items-center gap-2">
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.max(offerChk?.floor ?? 1, Math.round((offerNum || est.price!.point) * 0.95))))}>−5%</button>
+                <div className="flex flex-1 items-center gap-1"><span className="text-ink-soft">$</span><input className="input text-right text-lg font-bold" inputMode="decimal" value={offer} onChange={(e) => setOffer(e.target.value.replace(/[^\d.]/g, "").slice(0, 9))} aria-label={L("Your price", "Su precio")} /></div>
+                <button type="button" className="btn-ghost px-3 py-1" onClick={() => setOffer(String(Math.round((offerNum || est.price!.point) * 1.05)))}>+5%</button>
+              </div>
+              <p className="text-xs text-ink-soft">{L(`Handled's price is ${money(est.price.point)}. Offer less or more: pros on our job board decide. You pay ${money(BOARD_POST_FEE)} to post it; your price is charged only when a pro takes it. If no one takes it in ${OFFER_BOUNDS.boardDays} days, you pay nothing more.`, `El precio de Handled es ${money(est.price.point)}. Ofrezca menos o más: los profesionales deciden. Paga ${money(BOARD_POST_FEE)} para publicarlo; su precio se cobra solo cuando un profesional lo toma. Si nadie lo toma en ${OFFER_BOUNDS.boardDays} días, no paga nada más.`)}</p>
+              {offerChk && !offerChk.ok && <p className="text-xs text-rose-700">{offerChk.level === "too_low" ? L(`Offers start at ${money(offerChk.floor)} for this job.`, `Las ofertas empiezan en ${money(offerChk.floor)} para este trabajo.`) : L(`Up to ${money(offerChk.max)}. Call us for bigger jobs.`, `Hasta ${money(offerChk.max)}. Llámenos para trabajos más grandes.`)}</p>}
+              {offerChk?.ok && offerNum < est.price.point && <p className="text-xs text-amber-800">{L("Lower offers can take longer to get a pro.", "Las ofertas más bajas pueden tardar más.")}</p>}
+              {offerChk?.ok && offerNum > est.price.point && <p className="text-xs text-brand-dark">✓ {L("A higher offer usually gets a pro faster.", "Una oferta más alta suele conseguir un profesional antes.")}</p>}
+              <a href={offerChk?.ok ? bookHref(offerNum) : undefined} aria-disabled={!offerChk?.ok} className={`btn-primary block w-full py-3 text-center text-base ${offerChk?.ok ? "" : "pointer-events-none opacity-50"}`}>{L(`Send my job at ${offerNum ? money(offerNum) : "my price"}`, `Enviar mi trabajo a ${offerNum ? money(offerNum) : "mi precio"}`)}</a>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <button type="button" onClick={() => setNext(next === "pm" ? null : "pm")} className="text-brand underline">🤖 {L("Questions? Ask your AI project manager", "¿Preguntas? Su gerente de proyecto con IA")}</button>
+            {canName && <button type="button" onClick={() => setNext(next === "call" ? null : "call")} className="text-brand underline">📱 {L("Have a person call me", "Que me llame una persona")}</button>}
           </div>
 
           {next === "pm" && <ProjectManager es={es} f={f} est={est} intro={est.service_slug

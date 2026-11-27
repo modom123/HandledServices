@@ -16,6 +16,8 @@
  *           Nothing here sends email. Every call is logged to ai_runs.
  * UPDATED : 2026-11-25_1900 UTC — the AI picks this week's marketing angle for the business from what we already sent (owner: rotate
  *           the emails; have the AI work out how to market to them). Returns the angle; it's kept on the lead's history.
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import "server-only";
 import { z } from "zod";
@@ -104,7 +106,7 @@ export async function writeCampaign(o: { audience: EmailAudience; goal: string; 
       `You write marketing emails for ${BRAND.name}. ${BRAND.pitch}\n` +
       `Audience: ${a.label} (they get it because ${a.why}).${a.note ? ` Note: ${a.note}` : ""}\n` +
       "Format of the body: blank line = new paragraph; **bold**; a line like [Book now]({{book_url}}) on its own = a button (one button, near the end); lines starting with • = a list. " +
-      "Merge tags you may use: {{first_name|there}}, {{company}}, {{city}}, {{book_url}}, {{post_url}} (post a project, get an instant estimate), {{site_url}}. Start with 'Hi {{first_name|there}},'. " +
+      "Merge tags you may use: {{first_name|there}}, {{company}}, {{city}}, {{book_url}}, {{post_url}} (Get it Handled: a quick description and 3 photos, an AI quote in a minute, book at our price or name theirs), {{site_url}}. Start with 'Hi {{first_name|there}},'. " +
       `Links: only {{book_url}}, {{post_url}}, {{site_url}} or pages on ${site}. The unsubscribe link and postal address are added automatically, so never write them. ` +
       "Honest and specific: never invent prices, $ amounts, discounts, deadlines, statistics or testimonials. Mention an offer only if the staff note gives one, worded exactly. " +
       `Plain, warm, local voice; 80–160 words; no exclamation marks in the subject; sign off as "The ${BRAND.name} team". ` +

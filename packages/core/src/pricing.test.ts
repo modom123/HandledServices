@@ -3542,3 +3542,18 @@ test("Get it Handled: 5 most-chosen quick picks per path, from real bookings onc
   assert.equal(p[0], "gutter-cleaning"); assert.equal(p[1], "dog-walking"); assert.ok(!p.includes("dock-door-service")); assert.equal(p.length, 5);
   assert.ok(!popularPicks("business", { "dog-walking": 40 }).includes("dog-walking"));
 });
+
+test("AI quote learning: booked jobs and market research become price signals that move the market factor", async () => {
+  const { bookedJobSignals, researchSignals, QUOTE_LEARNING } = await import("./quote-learning.ts");
+  const { marketFactor, MARKET_BOUNDS } = await import("./pricing.ts");
+  const b = bookedJobSignals([{ suggested: 200, final: 200, scopeExtra: 40 }, { suggested: 200, final: 200, refunded: 200, paid: 200 }, { suggested: 0, final: 100 }]);
+  assert.equal(b.length, 1); assert.equal(b[0].price, 240);
+  assert.equal(researchSignals([{ typical: 260 }], 200).length, QUOTE_LEARNING.researchWeight);
+  assert.equal(researchSignals([{ typical: 900 }, { typical: 50 }], 200).length, 0); // typos ignored
+  // jobs that keep running 20% over the quote, plus research saying others charge more → the factor rises (bounded)
+  const sig = [...bookedJobSignals(Array.from({ length: 6 }, () => ({ suggested: 200, final: 240 }))), ...researchSignals([{ typical: 250 }], 200)];
+  const m = marketFactor(sig, 1);
+  assert.ok(m.samples >= MARKET_BOUNDS.minSamples && m.factor > 1 && m.factor <= MARKET_BOUNDS.max);
+  // research saying others charge less pulls it down
+  assert.ok(marketFactor(researchSignals(Array.from({ length: 5 }, () => ({ typical: 160 })), 200), 1).factor < 1);
+});

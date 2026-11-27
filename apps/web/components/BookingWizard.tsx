@@ -61,6 +61,7 @@
  *           with an Edit link on each part.
  * UPDATED : 2026-11-18_0040 UTC — business orders show business prices (core businessEstimate / businessPrice); pros' own prices stay
  *           a share of the home suggestion.
+ * UPDATED : 2026-11-27_1700 UTC — initialOffer: a price named on Get it Handled arrives filled in.
  */
 "use client";
 
@@ -114,7 +115,7 @@ export interface HomeChoice { id: string; label: string; address: string; city: 
 /** A Field Sales ticket (/book?ticket=…): what the partner set up with the customer. */
 export interface SalesTicketPrefill { token: string; date?: string | null; window?: string; access?: string; contact: { name: string; email: string; phone: string; address: string; city: string; state: string; zip: string; customer_type?: string; company_name?: string } }
 
-export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, commercial = false, ticket }: { ticket?: SalesTicketPrefill; commercial?: boolean; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
+export function BookingWizard({ initialService, prefill = {}, initialUrgency, initialBudget, initialPromo, initialFrequency, locale = "en", business, preferred, initialPhotos = [], initialNotes = "", homes = [], initialHome, signedIn = false, quote = null, commercial = false, ticket, initialOffer }: { initialOffer?: string; ticket?: SalesTicketPrefill; commercial?: boolean; quote?: BookedQuote | null; initialService?: string; prefill?: Answers; initialUrgency?: string; initialBudget?: string; initialPromo?: string; initialFrequency?: string; locale?: Locale; business?: BusinessBooking; preferred?: PreferredPro; initialPhotos?: string[]; initialNotes?: string; homes?: HomeChoice[]; initialHome?: string; signedIn?: boolean }) {
   const t = (s: string) => tr(locale, s);
   const es = locale === "es";
   const router = useRouter();
@@ -179,7 +180,7 @@ export function BookingWizard({ initialService, prefill = {}, initialUrgency, in
   const homeEst = useMemo(() => (svc ? estimate({ slug: svc.slug, answers, frequency, rush: isRush(date), market, region }) : null), [svc, answers, frequency, date, market, region]);
   const est = useMemo(() => (homeEst && bizPricing ? businessEstimate(homeEst) : homeEst), [homeEst, bizPricing]);
   // Name your price ("" = our suggestion)
-  const [offer, setOffer] = useState("");
+  const [offer, setOffer] = useState(initialOffer ?? "");
   // pros' own prices for this job (their % of our suggestion; core proPrice turns it into the all-in price)
   const [proRows, setProRows] = useState<ProRateRow[]>([]);
   const [choice, setChoice] = useState<string | null>(null);

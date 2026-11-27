@@ -9,6 +9,8 @@
  *           Business & Technology stays consultation-only (no price; a free video consultation sets it).
  * UPDATED : 2026-11-17_1600 UTC — up to $2,500 is an instant, bookable price with no call or site visit (core
  *           siteVisitReason); the estimate carries the exact price (point) and, when a visit is needed, why.
+ * UPDATED : 2026-11-27_1800 UTC — the quote uses the learned market factor (pros, booked jobs, market research), the same as
+ *           the booking page, so the Get it Handled price and the booking price match.
  * UPDATED : 2026-11-25_0200 UTC — optional frequency (recurring business work priced per visit; Price from photos).
  */
 import "server-only";
@@ -16,6 +18,7 @@ import { consultOnly, defaultAnswers, estimate, getService, serviceText, siteVis
 import { aiIdentifyJob } from "./ai/identify";
 import { aiEnabled } from "./ai/client";
 import { regionFactor } from "./launch";
+import { getMarketFactor } from "./market";
 
 export type ProjectEstimate = {
   service_slug: string | null;
@@ -71,7 +74,9 @@ export async function estimateProject(o: { service?: string | null; details?: st
   if (consultOnly(slug)) return { ...common, price: null, site_visit: true, visit_reason: siteVisitReason(slug, answers, null), consult_only: true };
 
   const zip = o.zip && /^\d{5}$/.test(o.zip) ? o.zip : null;
-  const e = estimate({ slug, answers, frequency: o.frequency ?? "once", region: zip ? await regionFactor(zip, slug) : 1 });
+  // the same learned market price as the booking page (pros' outcomes, booked jobs, market research: lib/market.ts)
+  const [region, market] = await Promise.all([zip ? regionFactor(zip, slug) : Promise.resolve(1), getMarketFactor(slug, zip)]);
+  const e = estimate({ slug, answers, frequency: o.frequency ?? "once", region, market });
   const why = siteVisitReason(slug, answers, e.point);
   return { ...common, price: { point: e.point, low: e.low, high: e.high, items: e.items.map((i) => ({ label: i.label, amount: i.amount })) }, site_visit: Boolean(why), visit_reason: why, consult_only: false };
 }

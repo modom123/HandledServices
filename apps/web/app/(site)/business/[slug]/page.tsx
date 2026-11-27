@@ -9,6 +9,8 @@
  *           carried to the walkthrough and the order, so the lead is credited.
  * UPDATED : 2026-11-19_1540 UTC — "or post a project and get an estimate" (/post, our own lead) next to the walkthrough and order buttons.
  * UPDATED : 2026-11-25_0200 UTC — the main button is "Get a price from photos" (no walkthrough); the walkthrough is the backup.
+ * UPDATED : 2026-11-27_1800 UTC — "Post your project" is now "Get it Handled" (/post): quick description, 3 photos, AI quote, then book at
+ *           Handled's price or name your price.
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -111,7 +113,7 @@ export default async function BizLandingPage({ params }: { params: Promise<{ slu
             <LeadLink href={photo} className="btn-primary mt-4 inline-block px-8 py-3 text-base">📸 Get a price from photos</LeadLink>
             <p className="mt-3 text-sm"><LeadLink href={walk} className="font-semibold text-brand">or book a free walkthrough →</LeadLink></p>
             <p className="mt-3 text-sm"><LeadLink href={order} className="font-semibold text-brand">or order online now →</LeadLink></p>
-            <p className="mt-1 text-sm"><LeadLink href={`/post?utm_source=business_page&utm_campaign=${l.slug}`} className="font-semibold text-brand">or post a project and get an estimate →</LeadLink></p>
+            <p className="mt-1 text-sm"><LeadLink href={`/post?utm_source=business_page&utm_campaign=${l.slug}`} className="font-semibold text-brand">or Get it Handled: 3 photos, your price →</LeadLink></p>
           </div>
         </div>
       </section>

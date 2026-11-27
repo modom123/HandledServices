@@ -13,11 +13,13 @@
  *                                   higher pay, or assigned to the pro whose counter they took
  *             nudgeLowOffers      — no pro yet after a while → suggest raising, from real counters
  * UPDATED : 2026-10-15_0300 UTC — offer nudges also cover "pay after" jobs with their 25% in.
+ * UPDATED : 2026-11-27_1800 UTC — the AI quote learns from booked jobs and market research too (core quote-learning.ts):
+ *           refreshMarketFactors adds finished jobs vs. what we quoted and Hub market research to pros' offer outcomes.
  * UPDATED : 2026-11-12_1900 UTC — a name-your-price board post raises its price without a charge (the whole price is
  *           charged when a pro takes it).
  */
 import "server-only";
-import { BRAND, MARKET_BOUNDS, clampFactor, getService, isBoardPost, marketFactor, money, priceForPayout, serviceText, splitJob, type Job, type PriceSignal } from "@handled/core";
+import { BRAND, MARKET_BOUNDS, QUOTE_LEARNING, bookedJobSignals, clampFactor, defaultAnswers, estimate, getService, researchSignals, isBoardPost, marketFactor, money, priceForPayout, serviceText, splitJob, type Job, type PriceSignal } from "@handled/core";
 import { adminClient } from "./supabase/server";
 import { notify } from "./push";
 import { siteUrl } from "./notify";
@@ -50,15 +52,43 @@ export async function recordSignal(job: Pick<Job, "id" | "service_slug" | "zip" 
     .then(({ error }) => { if (error) console.error("[signal]", error.message); });
 }
 
-/** Daily: learn from the last 60 days of outcomes, per service, overall and per ZIP area. */
+/**
+ * Daily: learn the price per service, overall and per ZIP area, from three sources (core quote-learning.ts):
+ * pros' offer outcomes (last 60 days), finished jobs vs. what we quoted (last 120 days) and market research
+ * (last 365 days). The result is the market factor every quote uses: booking page, Get it Handled and sales tickets.
+ */
 export async function refreshMarketFactors() {
   const since = new Date(Date.now() - 60 * 86400000).toISOString();
-  const { data } = await db().from("price_signals").select("service_slug, area, price, suggested, outcome, counter").gte("created_at", since).limit(50000);
-  const rows = (data ?? []) as (PriceSignal & { service_slug: string; area: string })[];
-  const { data: cur } = await db().from("market_factors").select("service_slug, area, factor, manual_factor");
+  const bookedSince = new Date(Date.now() - QUOTE_LEARNING.bookedDays * 86400000).toISOString();
+  const researchSince = new Date(Date.now() - QUOTE_LEARNING.researchDays * 86400000).toISOString().slice(0, 10);
+  const [{ data }, { data: cur }, { data: done }, { data: research }] = await Promise.all([
+    db().from("price_signals").select("service_slug, area, price, suggested, outcome, counter").gte("created_at", since).limit(50000),
+    db().from("market_factors").select("service_slug, area, factor, manual_factor"),
+    db().from("jobs").select("service_slug, zip, suggested_price, price_final, discount, member_benefit, scope_extra, amount_refunded, amount_paid")
+      .eq("status", "completed").is("parent_job_id", null).not("suggested_price", "is", null).gte("completed_at", bookedSince).limit(20000),
+    db().from("market_research").select("service_slug, area, typical").gte("researched_on", researchSince).limit(5000).then((r) => r, () => ({ data: [] })),
+  ]);
+  type Sig = PriceSignal & { service_slug: string; area: string };
+  const rows: Sig[] = [...((data ?? []) as Sig[])];
+  const fromOffers = rows.length;
+  // finished jobs: what it really came to (with work added on site) vs. what we quoted
+  for (const j of (done ?? []) as (Pick<Job, "service_slug" | "zip" | "price_final" | "discount" | "member_benefit"> & { suggested_price: number; scope_extra: number | null; amount_refunded: number | null; amount_paid: number | null })[]) {
+    for (const x of bookedJobSignals([{ suggested: Number(j.suggested_price), final: listPriceOf(j), scopeExtra: Number(j.scope_extra ?? 0), refunded: Number(j.amount_refunded ?? 0), paid: Number(j.amount_paid ?? 0) }]))
+      rows.push({ ...x, service_slug: j.service_slug, area: area(j.zip) });
+  }
+  const fromJobs = rows.length - fromOffers;
   const current = new Map(((cur ?? []) as { service_slug: string; area: string; factor: number; manual_factor: number | null }[]).map((c) => [`${c.service_slug}|${c.area}`, c]));
-  const groups = new Map<string, typeof rows>();
-  for (const r of rows) for (const a of ["all", r.area]) { const k = `${r.service_slug}|${a}`; groups.set(k, [...(groups.get(k) ?? []), r]); }
+  // market research: what others charge for a typical job vs. our typical price today (with the factor we use now)
+  for (const r of (research ?? []) as { service_slug: string; area: string; typical: number }[]) {
+    const svc = getService(r.service_slug);
+    if (!svc) continue;
+    const now = Number(current.get(`${r.service_slug}|${r.area}`)?.factor ?? current.get(`${r.service_slug}|all`)?.factor ?? 1);
+    let ours = 0;
+    try { ours = estimate({ slug: svc.slug, answers: defaultAnswers(svc), market: now }).point; } catch { continue; }
+    for (const x of researchSignals([{ typical: Number(r.typical) }], ours)) rows.push({ ...x, service_slug: r.service_slug, area: r.area });
+  }
+  const groups = new Map<string, Sig[]>();
+  for (const r of rows) for (const a of r.area === "all" ? ["all"] : ["all", r.area]) { const k = `${r.service_slug}|${a}`; groups.set(k, [...(groups.get(k) ?? []), r]); }
   let updated = 0;
   for (const [k, sig] of groups) {
     const [slug, a] = k.split("|");
@@ -68,7 +98,7 @@ export async function refreshMarketFactors() {
     await db().from("market_factors").upsert({ service_slug: slug, area: a, factor: m.factor, samples: m.samples, target: m.target, updated_at: new Date().toISOString(), updated_by: "learning" }, { onConflict: "service_slug,area" });
     updated++;
   }
-  return { updated, signals: rows.length };
+  return { updated, signals: rows.length, fromOffers, fromJobs, fromResearch: rows.length - fromOffers - fromJobs };
 }
 
 /** A pro counters an offer: "I'll do it for $X" (their payout). The customer decides. */
