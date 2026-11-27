@@ -127,7 +127,7 @@ export function LoginForm({ next, initialEmail = "", expired = false, es = false
           </div>
           {who === "pro" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no es profesional de Handled? " : "Not a Handled pro yet? "}<a href="/pros#apply" className="font-semibold text-brand underline">{es ? "Postúlese aquí" : "Apply here"}</a>{es ? ": su cuenta de profesional se abre cuando lo aprobamos. Use el correo de su solicitud." : " — your pro account opens once you're approved. Use the email from your application."}</p>}
           {who === "business" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no tiene cuenta empresarial? Inicie sesión y créela en dos minutos." : "No business account yet? Sign in and set one up in two minutes."}</p>}
-          {who === "partner" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no es socio? " : "Not a partner yet? "}<a href="/partners#join" className="font-semibold text-brand underline">{es ? "Únase aquí" : "Join here"}</a>{es ? ": use el mismo correo con el que se registró." : " — use the email you signed up with."}</p>}
+          {who === "partner" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "¿Aún no es socio? " : "Not a partner yet? "}<a href="/partners" className="font-semibold text-brand underline">{es ? "Únase aquí" : "Join here"}</a>{es ? ": use el mismo correo con el que se registró." : " — use the email you signed up with."}</p>}
           {who === "team" && <p className="mt-2 rounded-lg bg-paper p-2 text-xs">{es ? "Solo para personal: un administrador debe agregar su correo en Hub → Equipo." : "Staff only: an admin must add your email in Hub → Team first."}</p>}
         </div>
       )}

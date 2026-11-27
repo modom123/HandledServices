@@ -31,7 +31,7 @@ export function PartnerBand({ es }: { es: boolean }) {
             </div>
           </div>
           <div className="flex flex-col gap-3 md:items-end">
-            <Link href="/partners#join" className="btn bg-white px-6 py-3 text-base font-bold text-brand-deep shadow-lg hover:bg-gold-light">{es ? "Hacerme socio" : "Become a partner"} →</Link>
+            <Link href="/partners" className="btn bg-white px-6 py-3 text-base font-bold text-brand-deep shadow-lg hover:bg-gold-light">{es ? "Hacerme socio" : "Become a partner"} →</Link>
             <span className="text-sm text-white/70">{es ? "Gratis · pagos cada lunes" : "Free to join · paid every Monday"}</span>
             <Link href="/partners" className="text-sm font-semibold text-gold-light underline">{es ? "Cómo funciona" : "How it works"}</Link>
           </div>
