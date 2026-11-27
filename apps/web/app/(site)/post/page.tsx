@@ -13,6 +13,7 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-17_1446 UTC — Estimate first: posting gives an instant price estimate, then the customer books, works
  *           it through with an AI project manager, or has a real person call (steps and copy updated).
+ * UPDATED : 2026-11-27_1700 UTC — steps match the new order (home/business, description + 3 photos, AI quote, send / name your price).
  * UPDATED : 2026-11-27_1500 UTC — "Get it Handled": the page is branded Get it Handled; 3 steps (pick it, snap 3 photos, see
  *           your price); services carry their category for the category-first picker.
  * UPDATED : 2026-11-17_1600 UTC — copy: projects up to $2,500 are priced instantly and booked with no call or site visit.
@@ -38,15 +39,15 @@ export default async function PostProject({ searchParams }: { searchParams: Prom
   const popular = await popularServices().catch(() => ({ home: [], business: [] }));
   const preset = services.some((s) => s.slug === service) ? service! : null;
   const steps = es
-    ? [["Hogar o negocio, y lo que necesita", "Toque Hogar o Negocio y siga el camino hasta el servicio. ¿No sabe cómo se llama? Omítalo: sus fotos nos lo dicen."], ["Tome 3 fotos", "Le decimos qué fotografiar. Nuestra IA mide el trabajo con ellas: sin visita."], ["Vea su precio y resérvelo", `Código postal, cuándo, y listo: su precio en un minuto. Hasta $2,500 se reserva a ese precio; los proyectos más grandes reciben un precio fijo. Marque la casilla de socio y reciba ${firstProjectLine(true)}.`]]
-    : [["Home or business, then what you need", "Tap Home or Business, then follow the path to the service. Not sure what it's called? Skip it: your photos tell us."], ["Snap 3 photos", "We tell you what to shoot. Our AI sizes the job from them, so there's no walkthrough."], ["See your price and book it", `ZIP, when, done: your price in about a minute. Up to $2,500 books at that price; bigger projects get a firm price. Tick the partner box and get ${firstProjectLine()}.`]];
+    ? [["Hogar o negocio", "Toque uno y elija entre lo más pedido o los otros servicios. ¿No sabe cómo se llama? Sus fotos nos lo dicen."], ["Descripción rápida y 3 fotos", "Una frase y 3 fotos: le decimos qué fotografiar. Sin visita."], ["Su cotización con IA", "Nuestra IA lee sus fotos y nuestro motor de precios le da el precio en un minuto."], ["Envíe su trabajo", `Al precio de Handled, o ponga su precio y los profesionales deciden. Marque la casilla de socio y reciba ${firstProjectLine(true)}.`]]
+    : [["Home or business", "Tap one, then pick from the most popular or other services. Not sure what it's called? Your photos tell us."], ["Quick description and 3 photos", "A sentence and 3 photos: we tell you what to shoot. No walkthrough."], ["Your AI quote", "Our AI reads your photos and our pricing engine gives you the price in about a minute."], ["Send your job", `At Handled's price, or name your price and pros decide. Tick the partner box and get ${firstProjectLine()}.`]];
   return (
     <div className="wrap grid gap-10 pro:gap-8 py-12 lg:grid-cols-[1fr_1.15fr]">
       <div>
         <span className="inline-flex items-center gap-2 rounded-full bg-brand-tint px-3 py-1 text-xs font-semibold text-brand-dark"><Ico i="📝" className="mr-0" />{es ? "Gratis y sin compromiso" : "Free, no obligation"}</span>
         <span className="ml-2 inline-flex items-center gap-2 rounded-full bg-gold-light/30 px-3 py-1 text-xs font-semibold"><Ico i="💵" className="mr-0" />{es ? `Reciba ${firstProjectLine(true)}` : `Get ${firstProjectLine()}`}</span>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight">{es ? "Resuélvalo con" : "Get it"} <span className="text-brand">Handled.</span></h1>
-        <p className="mt-4 text-lg text-ink-soft">{es ? "Elija, tome 3 fotos, responda 3 preguntas: su precio en un minuto. Cualquier trabajo para su hogar o negocio, y nunca vendemos sus datos a otros contratistas." : "Pick it, snap 3 photos, answer 3 quick questions: your price in about a minute. Any job for your home or business, and we never sell your details to other contractors."}</p>
+        <p className="mt-4 text-lg text-ink-soft">{es ? "Hogar o negocio, una descripción rápida y 3 fotos: su cotización con IA en un minuto. Envíelo al precio de Handled o ponga el suyo. Nunca vendemos sus datos." : "Home or business, a quick description and 3 photos: your AI quote in about a minute. Send it at Handled's price or name your own. We never sell your details to other contractors."}</p>
         <ol className="mt-8 space-y-5">{steps.map(([t, d], i) => (
           <li key={t} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</span><span><span className="block font-semibold">{t}</span><span className="block text-sm text-ink-soft">{d}</span></span></li>
         ))}</ol>
