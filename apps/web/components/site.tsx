@@ -35,6 +35,8 @@
  * UPDATED : 2026-11-24_1700 UTC — Partners menu: Path 1 · Refer and Path 2 · Sell (the Sales careers page).
  * UPDATED : 2026-11-27_1500 UTC — "Post a project" is now "Get it Handled" (/post).
  * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
+ * UPDATED : 2026-11-27_2030 UTC — Partners and Sales are two plain menu buttons that open their pages (no Partners list in the side
+ *           menu); "Order for your business" → Get it Handled for your business.
  */
 import { AccountButton } from "./AccountButton";
 import Link from "next/link";
@@ -75,7 +77,7 @@ export async function SiteHeader() {
         { href: "/events", label: t("Parties & events"), icon: "🎉" },
         { href: "/talent", label: t("Recruiting (Handled Talent)"), icon: "🤝" },
       ],
-      footer: { href: "/book?for=business", label: es ? "Ordenar para su negocio →" : "Order for your business →" },
+      footer: { href: "/post?for=business", label: es ? "Resuélvalo para su negocio →" : "Get it Handled for your business →" },
     },
     {
       id: "pros", label: es ? "Para profesionales" : "For Pros",
@@ -90,15 +92,6 @@ export async function SiteHeader() {
       footer: { href: "/pros#apply", label: es ? "Postúlese en 5 minutos →" : "Apply in 5 minutes →" },
     },
     {
-      id: "partners", label: es ? "Socios" : "Partners",
-      items: [
-        { href: "/partners", label: es ? "Camino 1 · Referir" : "Path 1 · Refer", icon: "💸" },
-        { href: "/careers/sales", label: es ? "Camino 2 · Vender (equipo de ventas)" : "Path 2 · Sell (Sales Force)", icon: "📸" },
-        { href: "/partner", label: es ? "Panel de socio" : "Partner dashboard", icon: "📊" },
-      ],
-      footer: { href: "/partners#join", label: es ? "Hacerme socio →" : "Become a partner →" },
-    },
-    {
       id: "more", label: es ? "Más" : "More",
       items: [
         { href: "/plus", label: "Handled Plus", icon: "⭐" },
@@ -109,7 +102,10 @@ export async function SiteHeader() {
       ],
     },
   ];
+  // Partners and Sales are plain buttons that open their pages (owner, 2026-11-27: not a list in the side menu)
   const links = [
+    { href: "/partners", label: es ? "Socios" : "Partners", icon: "💸" },
+    { href: "/careers/sales", label: es ? "Ventas" : "Sales", icon: "📈" },
     { href: "/job-board", label: es ? "Tablero de trabajos" : "Job board", icon: "📋" },
     { href: "/network", label: es ? "Red Handled" : "Handled Network", icon: "🌐" },
   ];
