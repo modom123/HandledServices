@@ -15,6 +15,7 @@
  * UPDATED : 2026-10-23_0430 UTC — "Become a partner" link in the footer row (Referral Partner Program).
  * UPDATED : 2026-11-04_2230 UTC — SEO: canonical is /home (the content page), so search engines index one home page,
  *           not two with the same title; the business structured data is here too.
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import { BRAND, SERVED_AREAS_LABEL, t as tr } from "@handled/core";
@@ -45,7 +46,7 @@ export default async function Splash() {
         </span>
         <div className="splash-in mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "0.7s" }}>
           <Link href="/home" className="btn bg-[#0f6b66] px-8 py-3.5 text-base text-white hover:bg-[#0c5753]">{t("Enter")} {BRAND.name} →</Link>
-          <Link href="/book" className="btn border border-[#0f6b66]/40 px-8 py-3.5 text-base text-[#0f6b66] hover:border-[#0f6b66] hover:bg-[#0f6b66]/5">{t("Get my price")}</Link>
+          <Link href="/post" className="btn border border-[#0f6b66]/40 px-8 py-3.5 text-base text-[#0f6b66] hover:border-[#0f6b66] hover:bg-[#0f6b66]/5">{es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
         </div>
       </section>
 

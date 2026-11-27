@@ -19,6 +19,7 @@
  * UPDATED : 2026-11-09_0330 UTC — Professional look: line icons instead of emoji (ThemedIcon / Ico switch by look; Original unchanged).
  * UPDATED : 2026-11-09_1600 UTC — Business & Technology (consultOnly): no estimate before the consultation; the price is set on the call.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -64,7 +65,7 @@ export default async function Account() {
     <div className="wrap py-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-3xl font-extrabold tracking-tight">{t("My bookings")}</h1><p className="text-sm text-ink-soft">{v.email}{cno ? ` · ${l === "es" ? "N.º de cliente" : "Customer ID"} ${cno}` : ""}</p></div>
-        <div className="flex gap-2"><Link href="/book" className="btn-primary">{t("Book a service")}</Link>{biz.length > 0 && <Link href="/account/business" className="btn-ghost">🏢 {biz.length === 1 ? biz[0].account.company : l === "es" ? "Cuentas empresariales" : "Business accounts"}</Link>}<Link href="/account/contracts" className="btn-ghost">{t("My contracts")}</Link><form action="/auth/signout" method="post"><button className="btn-ghost">{t("Sign out")}</button></form></div>
+        <div className="flex gap-2"><Link href="/post" className="btn-primary">{l === "es" ? "Resuélvalo con Handled" : "Get it Handled"}</Link>{biz.length > 0 && <Link href="/account/business" className="btn-ghost">🏢 {biz.length === 1 ? biz[0].account.company : l === "es" ? "Cuentas empresariales" : "Business accounts"}</Link>}<Link href="/account/contracts" className="btn-ghost">{t("My contracts")}</Link><form action="/auth/signout" method="post"><button className="btn-ghost">{t("Sign out")}</button></form></div>
       </div>
       {(plans ?? []).length > 0 && (
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -132,7 +133,7 @@ async function Welcome({ locale, name }: { locale: Locale; name: (slug: string) 
           {points?.enabled && <li><Ico i="🏅" />{es ? `+${points.firstJobBonus} Handled Points extra cuando termine su primer trabajo.` : `+${points.firstJobBonus} bonus Handled Points when your first job is done.`}</li>}
           <li><Ico i="🎁" />{es ? `¿Tiene el código de un amigo? ${money(REFERRAL.friendOff)} de descuento en su primer trabajo: escríbalo al reservar.` : `Got a friend's code? ${money(REFERRAL.friendOff)} off your first job — enter it when you book.`}</li>
         </ul>
-        <Link href="/book" className="btn-primary mt-5 inline-block">{es ? "Reservar mi primer servicio" : "Book your first service"}</Link>
+        <Link href="/post" className="btn-primary mt-5 inline-block">{es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
       </div>
       <div>
         <h2 className="mb-2 font-bold">{es ? "Lo más reservado" : "Popular services"}</h2>

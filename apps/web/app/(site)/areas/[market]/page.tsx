@@ -12,6 +12,7 @@
  * UPDATED : 2026-11-10_2000 UTC — "New pros in <market>": the opt-in pros chain for the market's states.
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-24_2200 UTC — shorter title and a description Google shows in full.
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import { Ico } from "@/components/Glyph";
@@ -75,7 +76,7 @@ export default async function MarketPage({ params }: { params: Promise<{ market:
               <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm">
                 {m.cities.map((c) => <Link key={c.slug} href={`/services/${s.slug}/in/${c.slug}`} className="text-brand hover:underline">{c.name}</Link>)}
               </div>
-              <Link href={`/book?service=${s.slug}`} className="btn-primary mt-4 inline-block text-sm">{es ? "Reservar" : "Book"} {txt.name.toLowerCase()}</Link>
+              <Link href={`/post?service=${s.slug}`} className="btn-primary mt-4 inline-block text-sm">{es ? "Resuélvalo con Handled" : "Get it Handled"}: {txt.name.toLowerCase()}</Link>
             </div>
           );
         })}

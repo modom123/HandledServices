@@ -13,6 +13,7 @@
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
  * UPDATED : 2026-11-17_1446 UTC — Estimate first: posting gives an instant price estimate, then the customer books, works
  *           it through with an AI project manager, or has a real person call (steps and copy updated).
+ * UPDATED : 2026-11-27_1900 UTC — the one front door: the "Already know what you want? / Snap a photo" links are gone.
  * UPDATED : 2026-11-27_1700 UTC — steps match the new order (home/business, description + 3 photos, AI quote, send / name your price).
  * UPDATED : 2026-11-27_1500 UTC — "Get it Handled": the page is branded Get it Handled; 3 steps (pick it, snap 3 photos, see
  *           your price); services carry their category for the category-first picker.
@@ -51,7 +52,6 @@ export default async function PostProject({ searchParams }: { searchParams: Prom
         <ol className="mt-8 space-y-5">{steps.map(([t, d], i) => (
           <li key={t} className="flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-deep text-sm font-bold text-white">{i + 1}</span><span><span className="block font-semibold">{t}</span><span className="block text-sm text-ink-soft">{d}</span></span></li>
         ))}</ol>
-        <p className="mt-8 text-sm text-ink-soft">{es ? "¿Ya sabe lo que quiere?" : "Already know what you want?"} <Link href="/book" className="font-semibold text-brand">{es ? "Vea su precio al instante" : "Get an instant price"} →</Link> · <Link href="/snap" className="font-semibold text-brand">{es ? "Tome una foto, publique un trabajo" : "Snap a photo, post a job"} →</Link></p>
       </div>
       <PostProjectForm es={es} services={services} preset={preset} audience={forWho === "business" ? "business" : forWho === "home" ? "home" : null} popular={popular} />
     </div>

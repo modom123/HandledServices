@@ -8,6 +8,7 @@
  *           nothing when nobody has opted in yet. Server component; works in every website look.
  * UPDATED : 2026-11-24_1900 UTC — every activated pro is a link in the chain (nameless unless they opted in), a growth line
  *           ("N vetted pros · +X this month · in Y states"), and new pros appear the moment they're approved.
+ * UPDATED : 2026-11-27_1900 UTC — one front door (owner): "Get it Handled" (/post) replaces Book now / Snap a photo; /book is the checkout step.
  */
 import Link from "next/link";
 import type { ShowcaseEntry } from "@/lib/showcase";
@@ -51,7 +52,7 @@ export function NewProsChain({ pros, es = false, title, area, growth }: { pros: 
                 </div>
               </div>
               <ul className="mt-3 flex flex-1 flex-wrap content-start gap-1.5">
-                {p.services.map((s) => <li key={s.slug}><Link href={`/book?service=${s.slug}`} className="inline-block rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs hover:border-brand">{s.name}</Link></li>)}
+                {p.services.map((s) => <li key={s.slug}><Link href={`/post?service=${s.slug}`} className="inline-block rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs hover:border-brand">{s.name}</Link></li>)}
                 {p.more > 0 && <li className="px-1 py-0.5 text-xs text-ink-soft">+{p.more} {es ? "más" : "more"}</li>}
               </ul>
               <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-emerald-800"><span aria-hidden>✓</span> {es ? "Verificado" : "Vetted"}{p.joined && p.rating ? ` · ${es ? "desde" : "since"} ${p.joined}` : ""}</span>

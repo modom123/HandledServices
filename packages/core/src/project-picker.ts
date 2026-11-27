@@ -14,6 +14,11 @@
  *                                 every service in the category appears in exactly one group (a test checks)
  *             popularPicks()      the 4–5 services most people choose on each path (from real bookings, with defaults
  *                                 until there are enough), shown first after Home / Business
+ *             photosHelp(slug)    whether photos help price it (not for rides, pet care, errands, events, security or
+ *                                 business tech: those skip the photo step)
+ *             getItHandledHref()  the one front door: every Book / Get my price button opens Get it Handled (/post),
+ *                                 with the service picked when there is one (owner, 2026-11-27: Book now and Post a job
+ *                                 were duplicates; /book is now the checkout step it sends people to)
  *             GET_IT_HANDLED      the short flow: 3 photos, then ZIP, when and an optional note
  */
 import { CATEGORIES, SERVICES } from "./services.ts";
@@ -87,4 +92,21 @@ export function popularPicks(audience: PickerAudience, counts: Record<string, nu
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const ranked = total >= minBookings ? Object.entries(counts).filter(([slug, c]) => c > 0 && ok.has(slug)).sort((a, b) => b[1] - a[1]).map(([slug]) => slug) : [];
   return [...new Set([...ranked, ...POPULAR_DEFAULTS[audience].filter((x) => ok.has(x))])].slice(0, n);
+}
+
+/** Categories where photos don't help price the job: Get it Handled skips the photo step for these. */
+export const PHOTO_FREE_CATEGORIES: CategoryId[] = ["pets", "errands", "transport", "events", "security", "business"];
+export function photosHelp(slug: string | null | undefined): boolean {
+  const s = slug ? SERVICES.find((x) => x.slug === slug) : null;
+  return !s || !PHOTO_FREE_CATEGORIES.includes(s.category);
+}
+
+/** The one front door: Get it Handled, with the service (and business path) picked when known. */
+export function getItHandledHref(o: { service?: string | null; business?: boolean; extra?: Record<string, string> } = {}): string {
+  const q = new URLSearchParams();
+  if (o.service && SERVICES.some((x) => x.slug === o.service)) q.set("service", o.service);
+  if (o.business) q.set("for", "business");
+  for (const [k, v] of Object.entries(o.extra ?? {})) q.set(k, v);
+  const qs = q.toString();
+  return `/post${qs ? `?${qs}` : ""}`;
 }
