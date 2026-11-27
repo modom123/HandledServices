@@ -23,19 +23,28 @@
  * UPDATED : 2026-11-17_1530 UTC — appointment calendar: "Have a person call me" now offers "As soon as possible" or
  *           "Pick a time" (CallScheduler: our open call times, in the visitor's time zone). A booked time needs a phone;
  *           if it was just taken, the calendar reloads. The done screen shows the time with Add-to-calendar links.
+ * UPDATED : 2026-11-27_1500 UTC — "Get it Handled" (owner: tighten it up, brand it; categories then click for the specific
+ *           service instead of all 105; automate it: 3 photos and 3–4 inputs → estimate). Step 1 is now: pick a category
+ *           tile (or search, or skip and let the photos tell us) → the service (Repairs in sub-groups) → 3 photos with the
+ *           service's shot list → ZIP, when, an optional note. The price comes automatically once 3 photos and a ZIP are in.
+ *           The budget question is gone (the AI project manager handles budget).
+ *           It starts with Home or Business, then walks a logical path: Home → category → service; Business → what kind of
+ *           business → its usual work (or something else → business categories) → service, and asks how often (price per
+ *           visit and about-a-month) and the business name. ?for=business starts on the Business path. Right after Home /
+ *           Business: the 5 services most people choose on that path (lib/popular-services, from real bookings).
  * UPDATED : 2026-11-17_1600 UTC — up to $2,500: the estimate is the exact price to book now, no call or site visit needed
  *           (headline price + typical range); over that, or for events / safety cases, the range and why a visit comes first.
  */
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico, ThemedIcon } from "@/components/Glyph";
-import { BRAND, INSTANT_PRICE_UP_TO, callCalendarLinks, firstProjectLine, money, moneyRange } from "@handled/core";
+import { BIZ_FREQUENCIES, BRAND, GET_IT_HANDLED, INDUSTRIES, INSTANT_PRICE_UP_TO, callCalendarLinks, categoryText, firstProjectLine, monthlyEstimate, money, moneyRange, photoShots, pickerCategories, pickerGroups, type CategoryId, type Frequency, type PickerAudience } from "@handled/core";
 import { readAttribution, trackConversion } from "@/lib/track";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { CallScheduler, browserTz } from "./CallScheduler";
 
-type Opt = { slug: string; name: string };
+type Opt = { slug: string; name: string; category?: string };
 type Est = {
   service_slug: string | null; service_name: string | null; alternatives: Opt[]; summary: string | null;
   assumptions: { label: string; value: string }[]; answers: Record<string, string | number | boolean>; notes: string | null;
@@ -44,11 +53,28 @@ type Est = {
 };
 type Turn = { role: "user" | "assistant"; content: string };
 
-const BUDGET_MAX: Record<string, number> = { u500: 500, "500-2000": 2000, "2000-10000": 10000 };
 const WHEN: Record<string, string> = { asap: "asap", week: "this_week", month: "month", flexible: "flexible" };
 
-export function PostProjectForm({ es, services, preset }: { es: boolean; services: Opt[]; preset?: string | null }) {
+export function PostProjectForm({ es, services, preset, audience: startAudience = null, popular = { home: [], business: [] } }: { es: boolean; services: Opt[]; preset?: string | null; audience?: PickerAudience | null; popular?: Record<PickerAudience, string[]> }) {
   const [f, setF] = useState({ service: preset ?? "", details: "", timing: "", budget: "", zip: "", name: "", email: "", phone: "", website: "" });
+  const [cat, setCat] = useState<CategoryId | null>(null);
+  // the path starts with Home or Business, then walks to the right service (business: kind of business → its usual work)
+  const [audience, setAudience] = useState<PickerAudience | null>(startAudience ?? (preset ? "home" : null));
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [allCats, setAllCats] = useState(false);
+  const [freq, setFreq] = useState<Frequency>("once");
+  const [company, setCompany] = useState("");
+  const biz = audience === "business";
+  const ind = INDUSTRIES.find((x) => x.id === industry) ?? null;
+  const [q, setQ] = useState("");
+  const [skip, setSkip] = useState(false);
+  const byslug = useMemo(() => new Map(services.map((x) => [x.slug, x])), [services]);
+  const picked = f.service ? byslug.get(f.service) ?? null : null;
+  const cats = useMemo(() => pickerCategories(audience ?? undefined).map((c) => ({ id: c.id, icon: c.icon, label: categoryText(es ? "es" : "en", c.id, c).short })), [es, audience]);
+  const allCatInfo = useMemo(() => pickerCategories().map((c) => ({ id: c.id, icon: c.icon })), []);
+  const catOf = (slug: string) => allCatInfo.find((c) => c.id === services.find((x) => x.slug === slug)?.category);
+  const matches = useMemo(() => { const t = q.trim().toLowerCase(); const ok = new Set(cats.flatMap((c) => pickerGroups(c.id, audience ?? undefined).flatMap((g) => g.slugs))); return t ? services.filter((x) => ok.has(x.slug) && `${x.name} ${x.slug.replace(/-/g, " ")}`.toLowerCase().includes(t)).slice(0, 12) : []; }, [q, services, cats, audience]);
+  const pick = (slug: string) => { setF((x) => ({ ...x, service: slug })); setQ(""); setEst(null); };
   const [photos, setPhotos] = useState<string[]>([]);
   const [showPhotos, setShowPhotos] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -66,11 +92,12 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const L = (en: string, sp: string) => (es ? sp : en);
   const timings = [["asap", L("As soon as possible", "Lo antes posible")], ["week", L("Within a week", "En una semana")], ["month", L("Within a month", "En un mes")], ["flexible", L("I'm flexible", "Tengo flexibilidad")]];
-  const budgets = [["u500", L("Under $500", "Menos de $500")], ["500-2000", "$500 – $2,000"], ["2000-10000", "$2,000 – $10,000"], ["10000+", L("Over $10,000", "Más de $10,000")], ["unsure", L("Not sure yet", "Aún no sé")]];
   const label = (list: string[][], v: string) => list.find(([k]) => k === v)?.[1] ?? "";
   // up to $2,500 the estimate is the price to book now (no call); bigger jobs show a range until the free site visit
   const instant = Boolean(est?.price && !est.site_visit);
-  const priceText = est?.price ? (instant ? money(est.price.point) : moneyRange(est.price.low, est.price.high)) : null;
+  const recurring = biz && freq !== "once";
+  const priceText = est?.price ? `${instant ? money(est.price.point) : moneyRange(est.price.low, est.price.high)}${recurring ? L(" per visit", " por visita") : ""}` : null;
+  const monthly = est?.price && recurring && instant ? monthlyEstimate(est.price.point, freq) : null;
   const limit = `$${INSTANT_PRICE_UP_TO.toLocaleString("en-US")}`;
 
   async function getEstimate(service = f.service) {
@@ -78,13 +105,22 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     if (uploading) { setErr(L("Wait for your photos to finish uploading.", "Espere a que terminen de subir sus fotos.")); return; }
     if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
     setState("busy"); setErr("");
-    const r = await fetch("/api/post/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: service || null, details: f.details || null, zip: f.zip || null, photos, locale: es ? "es" : "en" }) }).catch(() => null);
+    const r = await fetch("/api/post/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service: service || null, details: f.details || null, zip: f.zip || null, photos, locale: es ? "es" : "en", frequency: biz ? freq : "once" }) }).catch(() => null);
     const j = r ? await r.json().catch(() => ({})) : {};
     setState("idle");
     if (!r?.ok || !j.ok) { setErr(String(j.error ?? L("Couldn't get an estimate — try again", "No se pudo calcular; intente de nuevo"))); return; }
     setEst(j as Est); setNext(null);
     if (j.service_slug && j.service_slug !== f.service) setF((x) => ({ ...x, service: j.service_slug }));
   }
+
+  // automatic: once the 3 photos and a ZIP are in, price it without waiting for the button (once; the button re-prices)
+  const auto = useRef(false);
+  useEffect(() => {
+    if (auto.current || est || uploading || state !== "idle" || !(picked || skip) || photos.length < GET_IT_HANDLED.photos || !/^\d{5}$/.test(f.zip.trim())) return;
+    auto.current = true;
+    void getEstimate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos.length, f.zip, uploading, picked, skip, est, state, freq]);
 
   function bookHref() {
     if (!est?.service_slug) return "/book";
@@ -109,10 +145,10 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
     if (f.zip && !/^\d{5}$/.test(f.zip.trim())) { setErr(L("ZIP code should be 5 digits.", "El código postal debe tener 5 dígitos.")); return; }
     setState("busy"); setErr("");
     const message = [
-      "Posted project",
+      "Posted project (Get it Handled)",
+      biz ? `For: business${ind ? ` (${ind.name})` : ""}${company.trim() ? ` · ${company.trim()}` : ""}${freq !== "once" ? ` · ${BIZ_FREQUENCIES.find((x) => x.value === freq)?.label.toLowerCase()}` : " · one time"}` : "For: home",
       f.details.trim() && `Details: ${f.details.trim()}`,
       f.timing && `Timing: ${label(timings, f.timing)}`,
-      f.budget && `Budget: ${label(budgets, f.budget)}`,
       est?.service_name && `Matched service: ${est.service_name}`,
       priceText ? `Online estimate shown: ${priceText}${est?.site_visit ? ` (firm price after free site visit${est.visit_reason ? `: ${est.visit_reason}` : ""})` : " (instant price, bookable now)"}` : est?.consult_only ? "Online estimate: consultation-only (no price shown)" : null,
       est?.assumptions.length ? `Estimate assumed: ${est.assumptions.map((a) => `${a.label}: ${a.value}`).join("; ")}` : null,
@@ -145,7 +181,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       <div className="min-w-0 space-y-4">
         <div className="card text-center">
           <div className="text-2xl"><ThemedIcon icon="✅" size="md" /></div>
-          <div className="mt-2 text-lg font-bold">{booked ? L("Your call is booked.", "Su llamada está reservada.") : L("Your project is posted. We're on it.", "Su proyecto está publicado. Nos encargamos.")}</div>
+          <div className="mt-2 text-lg font-bold">{booked ? L("Your call is booked.", "Su llamada está reservada.") : L("Got it. We'll get it Handled.", "Listo. Nosotros nos encargamos.")}</div>
           {booked ? (
             <>
               <div className="mt-2 text-xl font-extrabold text-brand">{new Date(booked).toLocaleString(es ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
@@ -175,53 +211,135 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
 
   return (
     <div className="min-w-0 space-y-4">
-      {/* 1 — describe it */}
+      {/* 1 — what needs Handled: category → service, then 3 photos and 3 quick questions */}
       <form className="card space-y-4" onSubmit={(e) => { e.preventDefault(); void getEstimate(); }}>
         <div className="flex items-center justify-between">
-          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">1 · {L("Your project", "Su proyecto")}</div>
+          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">1 · {L("What needs Handled?", "¿Qué necesita que resolvamos?")}</div>
           {est && <span className="text-xs text-ink-soft">{L("Change anything and re-price", "Cambie algo y recalcule")}</span>}
         </div>
-        <div>
-          <label className="text-sm font-semibold">{L("What do you need?", "¿Qué necesita?")}</label>
-          <select className="input mt-1" value={f.service} onChange={set("service")}>
-            <option value="">{L("Not sure — I'll describe it below", "No estoy seguro: lo describo abajo")}</option>
-            {services.map((s) => <option key={s.slug} value={s.slug}>{s.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-sm font-semibold">{L("Describe the project", "Describa el proyecto")}</label>
-          <textarea className="input mt-1 min-h-28" maxLength={2500} placeholder={L("What needs to be done, how big it is (rooms, sq ft, items…), anything we should know. The more detail, the sharper your estimate.", "Qué hay que hacer, de qué tamaño es (cuartos, pies², artículos…), cualquier cosa que debamos saber. Más detalle = estimado más preciso.")} value={f.details} onChange={set("details")} />
-          {f.details.length > 2000 && <p className="mt-1 text-right text-xs text-ink-soft">{2500 - f.details.length} {L("characters left", "caracteres restantes")}</p>}
-        </div>
-        {showPhotos || photos.length ? (
-          <div>
-            <label className="text-sm font-semibold">{L("Photos (optional)", "Fotos (opcional)")}</label>
-            <p className="mb-2 text-xs text-ink-soft">{L("Photos let the AI size the job — usually a tighter estimate.", "Las fotos permiten a la IA medir el trabajo: normalmente un estimado más preciso.")}</p>
-            <PhotoPicker value={photos} onChange={setPhotos} max={6} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} />
+        {!audience ? (
+          <div className="grid grid-cols-2 gap-3">
+            {([["home", "🏠", L("My home", "Mi hogar"), L("House, apartment, yard, family", "Casa, apartamento, jardín, familia")], ["business", "🏢", L("My business", "Mi negocio"), L("Office, store, property, building", "Oficina, tienda, propiedad, edificio")]] as const).map(([k, icon, t, d]) => (
+              <button key={k} type="button" onClick={() => { setAudience(k); setCat(null); setIndustry(null); setAllCats(false); }} className="rounded-xl border border-line p-4 text-left hover:border-brand hover:bg-brand-tint">
+                <div className="text-3xl" aria-hidden>{icon}</div><div className="mt-1 font-bold">{t}</div><div className="text-xs text-ink-soft">{d}</div>
+              </button>
+            ))}
+          </div>
+        ) : picked || skip ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand bg-brand-tint px-3 py-2 text-sm">
+            <span className="font-semibold">{biz ? "🏢 " : "🏠 "}{picked ? `${catOf(picked.slug)?.icon ?? ""} ${picked.name}` : L("Not sure: our AI will read your photos", "No estoy seguro: la IA leerá sus fotos")}{ind ? <span className="font-normal text-ink-soft"> · {ind.name}</span> : null}</span>
+            <button type="button" className="text-xs text-brand underline" onClick={() => { setF({ ...f, service: "" }); setSkip(false); setEst(null); auto.current = false; }}>{L("Change", "Cambiar")}</button>
           </div>
         ) : (
-          <button type="button" className="text-sm font-semibold text-brand" onClick={() => setShowPhotos(true)}><Ico i="📸" />{L("Add photos for a sharper estimate", "Agregue fotos para un estimado más preciso")}</button>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-paper px-3 py-1 font-semibold">{biz ? `🏢 ${L("Business", "Negocio")}` : `🏠 ${L("Home", "Hogar")}`}{ind ? ` · ${ind.icon} ${ind.name}` : ""}</span>
+              <button type="button" className="text-xs text-brand underline" onClick={() => { setAudience(null); setIndustry(null); setCat(null); setAllCats(false); setQ(""); }}>{L("Change", "Cambiar")}</button>
+            </div>
+            {!q.trim() && !cat && !(biz && ind) && (popular[audience] ?? []).length > 0 && (
+              <div>
+                <div className="mb-1 text-sm font-semibold">⭐ {L("Most popular", "Lo más pedido")}</div>
+                <div className="flex flex-wrap gap-2">{popular[audience].map((slug) => byslug.get(slug)).filter(Boolean).map((x) => (
+                  <button key={x!.slug} type="button" onClick={() => pick(x!.slug)} className="rounded-full border border-brand/40 bg-brand-tint px-3 py-1.5 text-sm font-semibold hover:border-brand">{catOf(x!.slug)?.icon} {x!.name}</button>
+                ))}</div>
+                <div className="mt-3 text-xs text-ink-soft">{biz ? L("Or tell us your kind of business:", "O díganos su tipo de negocio:") : L("Or pick a category:", "O elija una categoría:")}</div>
+              </div>
+            )}
+            {biz && !industry ? (
+              <>
+                <div className="text-sm font-semibold">{L("What kind of business?", "¿Qué tipo de negocio?")}</div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {INDUSTRIES.map((x) => (
+                    <button key={x.id} type="button" onClick={() => setIndustry(x.id)} className="rounded-xl border border-line p-2.5 text-left text-sm hover:border-brand hover:bg-brand-tint"><span aria-hidden>{x.icon}</span> {x.name}</button>
+                  ))}
+                  <button type="button" onClick={() => { setIndustry("other"); setAllCats(true); }} className="rounded-xl border border-dashed border-line p-2.5 text-left text-sm hover:border-brand">➕ {L("Another kind", "Otro tipo")}</button>
+                </div>
+              </>
+            ) : biz && ind && !allCats ? (
+              <>
+                <div className="text-sm font-semibold">{L(`What ${ind.name.toLowerCase()} usually need`, `Lo que suelen necesitar: ${ind.name}`)}</div>
+                <div className="flex flex-wrap gap-2">
+                  {ind.slugs.map((slug) => byslug.get(slug)).filter(Boolean).map((x) => (
+                    <button key={x!.slug} type="button" onClick={() => pick(x!.slug)} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-brand hover:bg-brand-tint">{x!.name}</button>
+                  ))}
+                  <button type="button" onClick={() => setAllCats(true)} className="rounded-full border border-dashed border-line px-3 py-1.5 text-sm hover:border-brand">{L("Something else →", "Otra cosa →")}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <input className="input" placeholder={L("Search, e.g. gutters, move, deep clean", "Buscar, p. ej. canaletas, mudanza, limpieza")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={L("Search services", "Buscar servicios")} />
+                {q.trim() ? (
+                  <div className="flex flex-wrap gap-2">
+                    {matches.map((x) => <button key={x.slug} type="button" onClick={() => pick(x.slug)} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-brand">{x.name}</button>)}
+                    {!matches.length && <p className="text-sm text-ink-soft">{L("No match. Pick a category, or skip and let your photos tell us.", "Sin resultados. Elija una categoría, u omita y deje que sus fotos nos digan.")}</p>}
+                  </div>
+                ) : cat ? (
+                  <div className="space-y-3">
+                    <button type="button" className="text-sm text-brand" onClick={() => setCat(null)}>← {L("All categories", "Todas las categorías")}</button>
+                    {pickerGroups(cat, audience).map((g) => (
+                      <div key={g.label ?? "all"}>
+                        {g.label && <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">{es ? g.labelEs : g.label}</div>}
+                        <div className="flex flex-wrap gap-2">{g.slugs.map((slug) => byslug.get(slug)).filter(Boolean).map((x) => (
+                          <button key={x!.slug} type="button" onClick={() => pick(x!.slug)} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-brand hover:bg-brand-tint">{x!.name}</button>
+                        ))}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {cats.map((c) => (
+                      <button key={c.id} type="button" onClick={() => setCat(c.id)} className="rounded-xl border border-line p-3 text-left hover:border-brand hover:bg-brand-tint">
+                        <div className="text-2xl" aria-hidden>{c.icon}</div>
+                        <div className="mt-1 text-sm font-semibold">{c.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            <button type="button" className="text-sm text-ink-soft underline" onClick={() => setSkip(true)}>{L("Not sure what it's called? Skip, your photos will tell us", "¿No sabe cómo se llama? Omita: sus fotos nos lo dirán")}</button>
+          </div>
         )}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
-            <option value="">{L("When?", "¿Cuándo?")}</option>
-            {timings.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <select className="input" value={f.budget} onChange={set("budget")} aria-label={L("Budget", "Presupuesto")}>
-            <option value="">{L("Budget?", "¿Presupuesto?")}</option>
-            {budgets.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
-        </div>
-        <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("Pricing your project…", "Calculando su proyecto…") : est ? L("Update my estimate", "Actualizar mi estimado") : L("Get my free estimate", "Obtener mi estimado gratis")}</button>
-        <p className="text-center text-xs text-ink-soft">{L("Instant, free, no contact details needed to see your price.", "Al instante, gratis y sin datos de contacto para ver su precio.")}</p>
+
+        {(picked || skip) && (
+          <>
+            <div>
+              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">2 · {L(`Snap ${GET_IT_HANDLED.photos} photos`, `Tome ${GET_IT_HANDLED.photos} fotos`)}</div>
+              <ol className="mb-2 mt-1 list-decimal space-y-0.5 pl-5 text-sm text-ink-soft">{photoShots(picked?.slug).slice(0, GET_IT_HANDLED.photos).map((t) => <li key={t}>{t}</li>)}</ol>
+              <PhotoPicker value={photos} onChange={setPhotos} max={GET_IT_HANDLED.maxPhotos} onError={setErr} onBusy={setUploading} locale={es ? "es" : "en"} />
+              <p className="mt-1 text-xs text-ink-soft">{photos.length >= GET_IT_HANDLED.photos ? L("Great, that's enough for an exact price.", "Perfecto, con eso basta para un precio exacto.") : L(`${GET_IT_HANDLED.photos - photos.length} more for the most accurate price (you can skip photos, but the price is a typical one).`, `${GET_IT_HANDLED.photos - photos.length} más para el precio más preciso (puede omitirlas, pero el precio será el típico).`)}</p>
+            </div>
+            <div className="space-y-3">
+              <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">3 · {biz ? L("A few quick questions", "Unas preguntas rápidas") : L("Three quick questions", "Tres preguntas rápidas")}</div>
+              <div className={`grid gap-3 ${biz ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                <input className="input" inputMode="numeric" maxLength={5} placeholder={L("ZIP code", "Código postal")} value={f.zip} onChange={set("zip")} aria-label={L("ZIP code", "Código postal")} />
+                {biz ? (
+                  <>
+                    <select className="input" value={freq} onChange={(e) => { setFreq(e.target.value as Frequency); setEst(null); auto.current = false; }} aria-label={L("How often", "Con qué frecuencia")}>
+                      {BIZ_FREQUENCIES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+                    </select>
+                    <input className="input" placeholder={L("Business name", "Nombre del negocio")} value={company} onChange={(e) => setCompany(e.target.value)} maxLength={120} aria-label={L("Business name", "Nombre del negocio")} />
+                  </>
+                ) : (
+                  <select className="input" value={f.timing} onChange={set("timing")} aria-label={L("When", "Cuándo")}>
+                    <option value="">{L("When do you need it?", "¿Para cuándo?")}</option>
+                    {timings.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                )}
+              </div>
+              <textarea className="input min-h-16" maxLength={2500} placeholder={skip ? L("What needs doing? (a sentence is plenty)", "¿Qué hay que hacer? (una frase basta)") : L("Anything we should know? Size, how many, access (optional)", "¿Algo que debamos saber? Tamaño, cantidad, acceso (opcional)")} value={f.details} onChange={set("details")} aria-label={L("Details", "Detalles")} />
+            </div>
+            <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{uploading ? L("Uploading photos…", "Subiendo fotos…") : state === "busy" ? L("Reading your photos…", "Leyendo sus fotos…") : est ? L("Update my price", "Actualizar mi precio") : L("Get it Handled: see my price", "Resuélvalo con Handled: ver mi precio")}</button>
+            <p className="text-center text-xs text-ink-soft">{L("Free and instant. No contact details needed to see your price.", "Gratis y al instante. Sin datos de contacto para ver su precio.")}</p>
+          </>
+        )}
         {err && !est && <p className="text-sm text-rose-700">{err}</p>}
       </form>
 
       {/* 2 — the estimate */}
       {est && (
         <div className="card space-y-3" aria-live="polite">
-          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">2 · {L("Your estimate", "Su estimado")}</div>
+          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">{L("Your price", "Su precio")}</div>
           {!est.service_slug ? (
             <div className="space-y-2 text-sm">
               <p>{est.summary ?? L("We couldn't match that to a service on our own yet.", "Aún no pudimos asociarlo a un servicio.")} {L("Pick the closest service above and re-price, or have a person call — we take custom projects too.", "Elija el servicio más cercano arriba y recalcule, o pida que le llamemos: también hacemos proyectos a medida.")}</p>
@@ -234,9 +352,9 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
                 {est.consult_only
                   ? <div className="text-xl font-bold">{L("Custom quote after a free video consultation", "Precio a medida tras una consulta gratis por video")}</div>
                   : <div className="text-3xl font-extrabold tracking-tight">{priceText}</div>}
+                {monthly && <div className="font-semibold">{L(`About ${money(monthly)} a month`, `Unos ${money(monthly)} al mes`)} ({BIZ_FREQUENCIES.find((x) => x.value === freq)?.label.toLowerCase()})</div>}
                 {est.price && est.site_visit && <p className="mt-1 text-xs text-ink-soft">{L(`Ballpark range${est.visit_reason ? ` (${est.visit_reason})` : ""}. A free site visit sets the firm, fixed price before you pay anything.`, `Rango aproximado${est.visit_reason ? ` (${est.visit_reason})` : ""}. Una visita gratis fija el precio antes de pagar.`)}</p>}
                 {est.price && instant && <p className="mt-1 text-sm"><span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{L("Book now — no call or site visit needed", "Reserve ya: sin llamada ni visita")}</span> <span className="text-xs text-ink-soft">{L(`Typical range ${moneyRange(est.price.low, est.price.high)}. Projects up to ${limit} are priced instantly; photos at checkout let us confirm it, and the price you approve is the price charged.`, `Rango típico ${moneyRange(est.price.low, est.price.high)}. Los proyectos hasta ${limit} tienen precio al instante; con fotos lo confirmamos, y el precio que aprueba es el que se cobra.`)}</span></p>}
-                {est.price && f.budget && BUDGET_MAX[f.budget] && est.price.low > BUDGET_MAX[f.budget] && <p className="mt-2 rounded-lg bg-gold-light/30 p-2 text-xs">{L("That's above the budget you gave. Your AI project manager can help find a smaller first phase or a flexible date that fits.", "Está por encima de su presupuesto. Su gerente de proyecto con IA puede ayudarle a encontrar una primera fase más pequeña o una fecha flexible.")}</p>}
               </div>
               {est.summary && <p className="text-sm">{est.summary}</p>}
               {(est.assumptions.length > 0 || (est.price?.items.length ?? 0) > 0) && (
@@ -255,7 +373,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
       {/* 3 — what's next */}
       {est && (
         <div className="card space-y-3">
-          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">3 · {L("How do you want to move forward?", "¿Cómo quiere continuar?")}</div>
+          <div className="text-sm font-bold uppercase tracking-wide text-ink-soft">{L("How do you want to get it Handled?", "¿Cómo quiere continuar?")}</div>
           <div className="grid gap-2 sm:grid-cols-3">
             {est.service_slug && (
               <a href={bookHref()} className="rounded-xl border border-line p-3 text-left text-sm hover:border-brand">
@@ -307,7 +425,7 @@ export function PostProjectForm({ es, services, preset }: { es: boolean; service
                 <input type="checkbox" className="mt-0.5" checked={sms} onChange={(e) => setSms(e.target.checked)} />
                 <span>{L(`Text me about my project. By checking this, you agree to receive text messages from ${BRAND.name} at the number above about your request. Message and data rates may apply; reply STOP to opt out. Consent isn't required to buy.`, `Envíenme mensajes de texto sobre mi proyecto. Al marcar esto, acepta recibir mensajes de ${BRAND.name} al número indicado sobre su solicitud. Pueden aplicar tarifas de mensajes y datos; responda STOP para cancelar. No es necesario para comprar.`)}</span>
               </label>
-              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{state === "busy" ? L("Posting…", "Publicando…") : callMode === "schedule" ? L("Book my call", "Reservar mi llamada") : L("Post my project & call me", "Publicar y llamarme")}</button>
+              <button className="btn-primary w-full py-3 text-base" disabled={state === "busy" || uploading}>{state === "busy" ? L("Posting…", "Publicando…") : callMode === "schedule" ? L("Book my call", "Reservar mi llamada") : L("Get it Handled: call me", "Resuélvalo: llámeme")}</button>
               <p className="text-center text-xs text-ink-soft">{L("Free, no obligation. Your details go only to Handled — we never sell or share them.", "Gratis y sin compromiso. Sus datos solo los recibe Handled: nunca los vendemos ni compartimos.")}</p>
             </form>
           )}

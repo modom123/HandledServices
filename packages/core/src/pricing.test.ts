@@ -3513,3 +3513,32 @@ test("lead searches: only pros available for work count (approved, checked, insu
   assert.equal(proOpenSlots({ daily_capacity: 2, availability: { days: [1, 2, 3, 4, 5] } }, 25, today), 0);
   assert.equal(proOpenSlots({ daily_capacity: 1, time_off: ["2026-11-25"] }, 0, today), 13);
 });
+
+test("Get it Handled picker: every service sits in exactly one group of its own category", async () => {
+  const { pickerGroups, pickerCategories, GET_IT_HANDLED } = await import("./project-picker.ts");
+  const seen = new Map<string, number>();
+  for (const c of pickerCategories()) for (const g of pickerGroups(c.id)) for (const slug of g.slugs) {
+    assert.equal(SERVICES.find((s) => s.slug === slug)?.category, c.id, slug);
+    seen.set(slug, (seen.get(slug) ?? 0) + 1);
+  }
+  for (const s of SERVICES) assert.equal(seen.get(s.slug), 1, `${s.slug} appears once`);
+  for (const c of pickerCategories()) for (const g of pickerGroups(c.id)) assert.ok(g.slugs.length <= 12, `${c.id}/${g.label}: short enough to scan`);
+  assert.equal(GET_IT_HANDLED.photos, 3);
+  // home / business paths: every service is reachable on at least one path; business-only work isn't on the home path
+  const reach = new Set<string>();
+  for (const aud of ["home", "business"] as const) for (const c of pickerCategories(aud)) for (const g of pickerGroups(c.id, aud)) for (const x of g.slugs) reach.add(x);
+  for (const s of SERVICES) assert.ok(reach.has(s.slug), `${s.slug} reachable`);
+  const homeSlugs = pickerCategories("home").flatMap((c) => pickerGroups(c.id, "home").flatMap((g) => g.slugs));
+  assert.ok(!homeSlugs.includes("dock-door-service") && !homeSlugs.includes("security-guard") && homeSlugs.includes("dog-walking"));
+  const bizSlugs = pickerCategories("business").flatMap((c) => pickerGroups(c.id, "business").flatMap((g) => g.slugs));
+  assert.ok(bizSlugs.includes("security-guard") && !bizSlugs.includes("dog-walking"));
+});
+
+test("Get it Handled: 5 most-chosen quick picks per path, from real bookings once there are enough", async () => {
+  const { popularPicks } = await import("./project-picker.ts");
+  assert.deepEqual(popularPicks("home"), ["house-cleaning", "handyman", "junk-removal", "lawn-care", "power-washing"]);
+  assert.deepEqual(popularPicks("home", { "tree-removal": 3 }), popularPicks("home")); // too few bookings to lead
+  const p = popularPicks("home", { "gutter-cleaning": 30, "dog-walking": 12, "dock-door-service": 50 });
+  assert.equal(p[0], "gutter-cleaning"); assert.equal(p[1], "dog-walking"); assert.ok(!p.includes("dock-door-service")); assert.equal(p.length, 5);
+  assert.ok(!popularPicks("business", { "dog-walking": 40 }).includes("dog-walking"));
+});

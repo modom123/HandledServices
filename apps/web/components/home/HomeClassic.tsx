@@ -42,6 +42,7 @@
  *           order: hero → doors → trust → why it works → services → how it works → who we are → partner → we build.
  * UPDATED : 2026-11-09_0420 UTC — Business & Technology card says "Free consultation" (custom work, no price).
  * UPDATED : 2026-11-10_0430 UTC — "insured pros" → "background-checked, vetted pros" (insurance is only required for services that need it).
+ * UPDATED : 2026-11-27_1500 UTC — "Post a project" is now "Get it Handled" (/post).
  */
 import Link from "next/link";
 import { BRAND, CATEGORIES, SERVICES, categoryText, serviceText, t as tr } from "@handled/core";
@@ -80,7 +81,7 @@ export async function HomeClassic() {
           <p className="mt-5 max-w-lg text-lg text-ink-soft">{es ? "Profesionales verificados y con antecedentes revisados, un precio fijo en 60 segundos, fotos al terminar y lo rehacemos gratis si algo falta. Empiece con lo más pedido o vea todo lo que ofrecemos." : "Background-checked, vetted local pros, an upfront price in 60 seconds, a photo check-out after every job, and a free redo if anything's missed. Start with what's most popular, or see everything we offer."}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/book" className="btn-primary px-6 py-3 text-base">{t("Get my price")}</Link>
-            <Link href="/post" className="btn-ghost px-6 py-3 text-base">📝 {es ? "Publique su proyecto" : "Post a project"}</Link>
+            <Link href="/post" className="btn-ghost px-6 py-3 text-base">📝 {es ? "Resuélvalo con Handled" : "Get it Handled"}</Link>
             <Link href="/services" className="btn-ghost px-6 py-3 text-base">{t("See all")} {SERVICES.length} {es ? "servicios" : "services"}</Link>
           </div>
         </div>
